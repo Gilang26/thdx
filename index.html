@@ -4,7 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Wormhole Bridge Simulator | Sepolia ↔ Monad</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
+  
+  <!-- ✅ FIX: gunakan versi UMD agar ethers dikenali di mobile browser -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
   <style>
     body {
       background:#0b1220;
@@ -48,6 +51,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="card">
     <h2>🌉 Wormhole Bridge Simulator</h2>
@@ -65,9 +69,14 @@
   </div>
 
   <script>
+    // Kalau ethers gagal dimuat, beri alert
+    if (typeof ethers === "undefined") {
+      alert("❌ Ethers.js gagal dimuat. Coba reload halaman setelah 2 detik.");
+    }
+
     const log = (m) => {
       const el = document.getElementById("log");
-      el.textContent += "\\n" + m;
+      el.textContent += "\n" + m;
       el.scrollTop = el.scrollHeight;
       console.log(m);
     };
@@ -103,7 +112,7 @@
         signer = provider.getSigner();
         user = await signer.getAddress();
         const net = await provider.getNetwork();
-        log(`✅ Connected: ${user}\\nChain: ${net.chainId}`);
+        log(`✅ Connected: ${user}\nChain: ${net.chainId}`);
         btn.textContent = "✅ Wallet Connected";
         document.getElementById("bridge").disabled = false;
       } catch (e) {
