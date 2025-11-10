@@ -3,115 +3,207 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Wormhole Bridge • Sepolia → Monad</title>
-<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+<title>THDX • Sepolia → Monad Bridge (Wormhole)</title>
+<meta name="theme-color" content="#0b1220" />
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.min.js"></script>
 <style>
-body { background:#0b1220; color:#fff; font-family:sans-serif; text-align:center; padding:20px; }
-h2 { color:#7c5cff; }
-select, input, button, textarea { width:90%; padding:12px; margin:8px 0; border-radius:8px; border:0; font-size:15px; }
-button { cursor:pointer; font-weight:bold; color:white; }
-#connect { background:linear-gradient(90deg,#6ee7ff,#7c5cff); }
-#approve { background:linear-gradient(90deg,#22c55e,#16a34a); }
-#bridge { background:linear-gradient(90deg,#facc15,#eab308); }
-#redeem { background:linear-gradient(90deg,#7c5cff,#6ee7ff); }
-pre { text-align:left; background:#111a2e; padding:10px; border-radius:8px; white-space:pre-wrap; word-break:break-all; }
+  :root{
+    --bg:#0b1220;--card:#121a2a;--muted:#9aa6b2;--stroke:#22304a;--text:#e6edf3;
+    --pri1:#6ee7ff;--pri2:#7c5cff;--ok:#22c55e;--warn:#f59e0b;--err:#ef4444;
+  }
+  *{box-sizing:border-box} body{
+    margin:0;min-height:100svh;display:grid;place-items:center;background:var(--bg);
+    color:var(--text);font-family:Inter,system-ui,Arial,sans-serif
+  }
+  .wrap{width:min(560px,92vw)}
+  .card{background:var(--card);border:1px solid var(--stroke);border-radius:14px;padding:22px;box-shadow:0 6px 20px rgba(0,0,0,.35)}
+  h1{margin:0 0 6px;font-size:22px}
+  p.sub{margin:0 0 16px;color:var(--muted)}
+  label{display:block;margin:12px 0 6px;color:#cfe3ff;font-weight:600;font-size:13px}
+  select,input{width:100%;padding:12px 13px;border-radius:10px;border:1px solid var(--stroke);background:#0f1625;color:#fff;font-size:14px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  button{
+    width:100%;padding:12px;border:0;border-radius:10px;color:#fff;font-weight:700;cursor:pointer;
+    background:linear-gradient(90deg,var(--pri1),var(--pri2));transition:.2s;margin-top:12px
+  }
+  button.secondary{background:#1b263b}
+  button.ok{background:linear-gradient(90deg,#16a34a,#22c55e)}
+  button:disabled{opacity:.55;cursor:not-allowed}
+  pre{
+    margin-top:14px;white-space:pre-wrap;background:#0f1625;border:1px solid var(--stroke);
+    border-radius:10px;padding:12px;min-height:120px;font-size:12.5px
+  }
+  .hint{color:var(--muted);font-size:12px;margin-top:6px}
 </style>
 </head>
 <body>
+  <div class="wrap">
+    <div class="card">
+      <h1>THDX • Wormhole Bridge</h1>
+      <p class="sub">Mode: <b>Sepolia → Monad (testnet)</b></p>
 
-<h2>🌉 Wormhole Bridge v2</h2>
-<p>Sepolia → Monad Testnet</p>
+      <div class="row">
+        <button id="btnConnect">🔌 Connect Wallet</button>
+        <button id="btnApprove" class="secondary" disabled>✅ Approve</button>
+      </div>
 
-<select id="token">
-  <option value="USDC">USDC</option>
-  <option value="USDT">USDT</option>
-  <option value="WBTC">WBTC</option>
-</select>
+      <label>Token</label>
+      <select id="tokenSel">
+        <option value="USDC">USDC (6 desimal)</option>
+        <option value="USDT">USDT (6 desimal)</option>
+        <option value="WBTC">WBTC (8 desimal)</option>
+      </select>
 
-<input id="amount" placeholder="Masukkan jumlah token" />
-<button id="connect">🔌 Connect Wallet</button>
-<button id="approve" disabled>✅ Approve Token</button>
-<button id="bridge" disabled>🚀 Bridge ke Monad</button>
+      <label>Jumlah (angka manusia, contoh: 10)</label>
+      <input id="amount" type="number" placeholder="Contoh: 10" inputmode="decimal"/>
 
-<pre id="log">Log siap...</pre>
+      <label>Recipient (EVM) • default: alamat sendiri</label>
+      <input id="recipient" type="text" placeholder="0x..." />
+
+      <button id="btnBridge" class="ok" disabled>🚀 Bridge ke Monad</button>
+      <div class="hint">
+        Wormhole TokenBridge (Sepolia): <code>0x6c5aAE4622B835058A41879bA5e128019B9047d6</code><br/>
+        DstChain (Monad testnet) Wormhole ChainID: <code>31041</code>
+      </div>
+
+      <pre id="log">log siap...</pre>
+    </div>
+  </div>
 
 <script>
-const TOKENS = {
-  USDC: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
-  USDT: "0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0",
-  WBTC: "0x52eeA312378ef46140EBE67dE8a143BA2304FD7C"
-};
+(() => {
+  // ====== KONSTAN ======
+  const CHAIN_SEPOLIA = 11155111;
+  const WORMHOLE_BRIDGE = "0x6c5aAE4622B835058A41879bA5e128019B9047d6"; // TokenBridge (Sepolia)
+  const DST_CHAIN_ID = 31041; // Monad testnet (Wormhole chainId)
 
-const BRIDGE = "0x3ee18B2214AFF97000D974cf647E7C347E8fa585"; // Wormhole official
-const DST_CHAIN = 31041; // Monad testnet
-let provider, signer, user;
+  // Token Sepolia (alamat & desimal)
+  const TOKENS = {
+    USDC: { addr: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238", decimals: 6 },
+    USDT: { addr: "0xaA8E23Fb1079EA71e0a56F48a2aA51851D8433D0", decimals: 6 },
+    WBTC: { addr: "0x52eeA312378ef46140EBE67dE8a143BA2304FD7C", decimals: 8 },
+  };
 
-function log(m){ const el=document.getElementById("log"); el.textContent+="\n"+m; el.scrollTop=el.scrollHeight; console.log(m); }
+  // ====== STATE ======
+  let provider, signer, me;
 
-async function connect(){
-  try{
-    if(!window.ethereum) throw new Error("Gunakan MetaMask / OKX Wallet");
-    provider = new ethers.providers.Web3Provider(window.ethereum);
-    await provider.send("eth_requestAccounts", []);
-    signer = provider.getSigner();
-    user = await signer.getAddress();
+  // ====== UI ======
+  const $ = (q)=>document.querySelector(q);
+  const log = (m)=>{ const el=$("#log"); el.textContent += (el.textContent?"\n":"")+m; el.scrollTop=el.scrollHeight; console.log(m); };
+
+  const toBytes32Address = (addr) => {
+    const clean = addr.toLowerCase().replace(/^0x/,"");
+    return "0x"+"0".repeat(64-40)+clean;
+  };
+
+  const parseAmount = (raw, decimals) => {
+    if (!raw || Number(raw)<=0) throw new Error("Isi jumlah > 0");
+    return ethers.utils.parseUnits(String(raw), decimals);
+  };
+
+  const ensureSepolia = async () => {
     const net = await provider.getNetwork();
-    log(`✅ Connected: ${user}\nChain: ${net.chainId}`);
-    document.getElementById("approve").disabled = false;
-  }catch(e){ log("❌ "+e.message); }
-}
+    if (net.chainId === CHAIN_SEPOLIA) return;
+    log(`⚠️ Bukan di Sepolia (chainId sekarang: ${net.chainId}). Coba switch...`);
+    try {
+      await provider.send("wallet_switchEthereumChain", [{ chainId: "0xaa36a7" }]); // 11155111 hex
+      log("✅ Berhasil switch ke Sepolia.");
+    } catch (e) {
+      log("❌ Gagal switch chain. Tambahkan Sepolia di wallet lalu ulangi.");
+      throw e;
+    }
+  };
 
-async function approveToken(){
-  try{
-    const symbol = document.getElementById("token").value;
-    const tokenAddr = TOKENS[symbol];
-    const amount = document.getElementById("amount").value.trim();
-    if(!amount) return log("⚠️ Masukkan jumlah token dulu");
-    const decimals = symbol === "WBTC" ? 8 : 6;
-    const amt = ethers.utils.parseUnits(amount, decimals);
-    const erc20 = new ethers.Contract(tokenAddr, ["function approve(address,uint256) returns (bool)"], signer);
-    const tx = await erc20.approve(BRIDGE, amt);
-    log(`🧾 Approve ${symbol}: ${tx.hash}`);
-    await tx.wait();
-    log(`✅ Approve ${symbol} sukses!`);
-    document.getElementById("bridge").disabled = false;
-  }catch(e){ log("❌ "+e.message); }
-}
+  // ====== CONNECT ======
+  $("#btnConnect").onclick = async () => {
+    try {
+      if (!window.ethereum) throw new Error("Buka di MetaMask/OKX/Trust browser.");
+      provider = new ethers.providers.Web3Provider(window.ethereum, "any");
+      await provider.send("eth_requestAccounts", []);
+      signer = provider.getSigner();
+      me = await signer.getAddress();
+      await ensureSepolia();
+      $("#recipient").value = me;
+      $("#btnApprove").disabled = false;
+      $("#btnBridge").disabled = false;
+      log(`✅ Connected: ${me}\nChain: ${(await provider.getNetwork()).chainId}`);
+    } catch (e) {
+      log("❌ Connect error: " + (e.message || e));
+    }
+  };
 
-async function bridgeToken(){
-  try{
-    const symbol = document.getElementById("token").value;
-    const tokenAddr = TOKENS[symbol];
-    const amount = document.getElementById("amount").value.trim();
-    if(!amount) return log("⚠️ Masukkan jumlah token dulu");
-    const decimals = symbol === "WBTC" ? 8 : 6;
-    const amt = ethers.utils.parseUnits(amount, decimals);
+  // ====== APPROVE ======
+  $("#btnApprove").onclick = async () => {
+    try {
+      if (!signer) throw new Error("Hubungkan wallet dulu.");
+      await ensureSepolia();
 
-    const recipientBytes = "0x" + user.slice(2).padStart(64, "0");
-    const abi = ["function transferTokens(address,uint256,uint16,bytes32,uint256,uint32)"];
-    const bridge = new ethers.Contract(BRIDGE, abi, signer);
-    const nonce = Math.floor(Math.random() * 1e9);
+      const sel = $("#tokenSel").value;
+      const {addr, decimals} = TOKENS[sel];
+      const amount = parseAmount($("#amount").value.trim(), decimals);
 
-    log(`🚀 Mengirim ${amount} ${symbol} ke Monad...`);
-    const tx = await bridge.transferTokens(
-      tokenAddr,
-      amt,
-      DST_CHAIN,
-      recipientBytes,
-      0,
-      nonce,
-      { gasLimit: 300000 }
-    );
+      const erc20 = new ethers.Contract(addr, [
+        "function approve(address spender, uint256 value) external returns (bool)"
+      ], signer);
 
-    log(`📦 Bridge TX: ${tx.hash}`);
-    await tx.wait();
-    log(`✅ ${symbol} berhasil dikirim ke Wormhole! Tunggu VAA untuk redeem.`);
-  }catch(e){ log("❌ "+(e.message || e)); }
-}
+      log(`🧾 Approve ${sel} ...`);
+      const tx = await erc20.approve(WORMHOLE_BRIDGE, amount);
+      log(`⏳ Approve TX: ${tx.hash}`);
+      await tx.wait();
+      log(`✅ Approve ${sel} sukses!`);
+    } catch (e) {
+      log("❌ Approve error: " + (e.reason || e.message || e));
+    }
+  };
 
-document.getElementById("connect").onclick = connect;
-document.getElementById("approve").onclick = approveToken;
-document.getElementById("bridge").onclick = bridgeToken;
+  // ====== BRIDGE ======
+  $("#btnBridge").onclick = async () => {
+    try {
+      if (!signer) throw new Error("Hubungkan wallet dulu.");
+      await ensureSepolia();
+
+      const sel = $("#tokenSel").value;
+      const {addr, decimals} = TOKENS[sel];
+      const amountLD = parseAmount($("#amount").value.trim(), decimals);
+
+      const recipient = ($("#recipient").value || me).trim();
+      if (!/^0x[0-9a-fA-F]{40}$/.test(recipient)) throw new Error("Recipient address tidak valid.");
+      const recipient32 = toBytes32Address(recipient);
+
+      const bridge = new ethers.Contract(WORMHOLE_BRIDGE, [
+        "function transferTokens(address token, uint256 amount, uint16 recipientChain, bytes32 recipient, uint256 arbiterFee, uint32 nonce) payable"
+      ], signer);
+
+      log(`🚀 Mengirim ${$("#amount").value} ${sel} ke Monad...`);
+      const nonce = Math.floor(Math.random()*2**32);
+      const gasLimit = ethers.BigNumber.from("250000"); // konservatif
+
+      const tx = await bridge.transferTokens(
+        addr,
+        amountLD,
+        DST_CHAIN_ID,
+        recipient32,
+        0, // arbiterFee
+        nonce,
+        { gasLimit }
+      );
+
+      log(`📦 Bridge TX: ${tx.hash}`);
+      const rc = await tx.wait();
+      if (rc.status !== 1) throw new Error("Transaksi gagal (status != 1). Cek Etherscan log untuk detail.");
+
+      log("✅ Token berhasil dikirim ke Wormhole! Tunggu VAA & mint di Monad oleh relayer.");
+      log("ℹ️ Jika perlu redeem manual, gunakan explorer Wormhole/relayer untuk mengambil VAA dan lakukan redeem di endpoint Monad.");
+    } catch (e) {
+      // error details
+      const msg = (e.error && e.error.message) || e.reason || e.message || String(e);
+      log("❌ Bridge error: " + msg);
+      if (/UNPREDICTABLE_GAS_LIMIT/i.test(msg)) {
+        log("💡 Hint: pastikan allowance sudah cukup, jumlah tidak terlalu kecil, dan bridge benar (Sepolia TokenBridge).");
+      }
+    }
+  };
+})();
 </script>
 </body>
 </html>
