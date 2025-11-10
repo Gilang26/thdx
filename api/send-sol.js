@@ -1,3 +1,4 @@
+// api/send-sol.js
 import {
   Connection,
   Keypair,
@@ -25,13 +26,14 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Alamat & jumlah wajib diisi" });
     }
 
-    // Validasi alamat Solana
+    // ✅ Validasi alamat Solana (cek format base58)
     try {
       new PublicKey(to);
     } catch {
       return res.status(400).json({ error: "Alamat penerima tidak valid atau salah format." });
     }
 
+    // 🔑 Ambil private key burn wallet dari Environment Variable di Vercel
     const secretKeyJson = process.env.PRIVATE_KEY_JSON;
     if (!secretKeyJson) {
       return res.status(500).json({ error: "PRIVATE_KEY_JSON belum diset di environment Vercel." });
@@ -39,16 +41,20 @@ export default async function handler(req, res) {
 
     const secretKey = Uint8Array.from(JSON.parse(secretKeyJson));
     const from = Keypair.fromSecretKey(secretKey);
+
+    // 🌐 Koneksi ke Solana Mainnet
     const connection = new Connection("https://api.mainnet-beta.solana.com", "confirmed");
 
+    // 💸 Buat transaksi transfer
     const tx = new Transaction().add(
       SystemProgram.transfer({
         fromPubkey: from.publicKey,
         toPubkey: new PublicKey(to),
-        lamports: amount * LAMPORTS_PER_SOL,
+        lamports: amount * LAMPORTS_PER_SOL
       })
     );
 
+    // 🚀 Kirim transaksi
     const signature = await sendAndConfirmTransaction(connection, tx, [from]);
     const explorer = `https://explorer.solana.com/tx/${signature}?cluster=mainnet-beta`;
 
