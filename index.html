@@ -16,9 +16,9 @@
 <body>
   <div class="card">
     <h2>💠 THDX • Solana Sender UI</h2>
-    <p>Kirim SOL via API backend (tanpa wallet)</p>
-    <input id="receiver" placeholder="Alamat penerima (contoh: 6a8XJs...)" />
-    <input id="amount" type="number" placeholder="Jumlah SOL (contoh: 0.01)" />
+    <p>Kirim SOL via API backend (tanpa wallet langsung)</p>
+    <input id="receiver" placeholder="Alamat penerima (contoh: 9CUV5oYPfoCA7wwPakZHMDieGvb5bB5NVio84W3VAWWM)" />
+    <input id="amount" type="number" placeholder="Jumlah SOL (contoh: 0.001)" />
     <button id="send">🚀 Kirim</button>
     <pre id="log">Log siap...</pre>
   </div>
@@ -33,7 +33,7 @@
 
     async function sendSol(){
       try{
-        const to=document.getElementById("receiver").value.trim();
+        const to=document.getElementById("receiver").value.replace(/\s+/g,'').trim();
         const amount=parseFloat(document.getElementById("amount").value);
         if(!to||isNaN(amount)) return log("⚠️ Isi alamat penerima dan jumlah.");
 
@@ -46,10 +46,13 @@
         });
 
         const data=await res.json();
-        if(data.error) return log("❌ Error: "+data.error);
+        if(!res.ok){
+          log("❌ Error: "+(data.error||"Gagal kirim"));
+          return;
+        }
 
         log("✅ Transaksi terkirim!");
-        log("🔗 Explorer: https://explorer.solana.com/tx/"+data.signature+"?cluster=mainnet-beta");
+        log("🔗 "+data.explorer);
       }catch(e){
         log("❌ Error: "+(e.message||e));
       }
