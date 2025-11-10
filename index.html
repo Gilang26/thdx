@@ -47,7 +47,7 @@ const TOKENS = {
 };
 
 const BRIDGE = "0x6c5aAE4622B835058A41879bA5e128019B9047d6";
-const DST_CHAIN = 31041; // Wormhole Monad Testnet ChainID
+const DST_CHAIN = 31041;
 
 let provider, signer, user;
 
@@ -97,11 +97,19 @@ async function bridgeToken(){
     const bridge = new ethers.Contract(BRIDGE, abi, signer);
     const nonce = Math.floor(Math.random() * 1e9);
     log(`🚀 Mengirim ${amount} ${symbol} ke Monad...`);
-    const tx = await bridge.transferTokens(tokenAddr, amt, DST_CHAIN, recipientBytes, 0, nonce);
+
+    let tx;
+    try {
+      tx = await bridge.transferTokens(tokenAddr, amt, DST_CHAIN, recipientBytes, 0, nonce, { gasLimit: 250000 });
+    } catch (error) {
+      log("⚠️ Estimasi gas gagal, mencoba ulang dengan gas 300000...");
+      tx = await bridge.transferTokens(tokenAddr, amt, DST_CHAIN, recipientBytes, 0, nonce, { gasLimit: 300000 });
+    }
+
     log(`📦 Bridge TX: ${tx.hash}`);
     await tx.wait();
     log(`✅ ${symbol} berhasil di-bridge ke Monad! Tunggu VAA untuk redeem.`);
-  }catch(e){ log("❌ "+e.message); }
+  }catch(e){ log("❌ "+(e.message || e)); }
 }
 
 async function redeemVAA(){
@@ -111,11 +119,11 @@ async function redeemVAA(){
     const abi = ["function completeTransfer(bytes memory encodedVm)"];
     const bridge = new ethers.Contract(BRIDGE, abi, signer);
     log("🔁 Mengirim redeem VAA ke Wormhole bridge...");
-    const tx = await bridge.completeTransfer(hexVAA);
+    const tx = await bridge.completeTransfer(hexVAA, { gasLimit: 350000 });
     log(`📦 Redeem TX: ${tx.hash}`);
     await tx.wait();
     log("✅ Redeem sukses! Token muncul di Monad.");
-  }catch(e){ log("❌ "+e.message); }
+  }catch(e){ log("❌ "+(e.message || e)); }
 }
 
 document.getElementById("connect").onclick = connect;
