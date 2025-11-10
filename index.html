@@ -5,28 +5,8 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>THDX • Solana NFT UI</title>
 
-  <!-- ✅ Solana Web3.js bundle khusus browser (sudah ada polyfill Buffer) -->
+  <!-- Versi browser resmi Solana Web3.js -->
   <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.3/lib/index.browser.min.js"></script>
-  <script>
-    // ✅ Deteksi otomatis di semua wallet browser agar solanaWeb3 tidak undefined
-    if (!window.solanaWeb3) {
-      if (window.web3js && window.web3js.Connection) {
-        window.solanaWeb3 = window.web3js; // beberapa bundle pakai web3js
-      } else if (window.solana && window.solana.Connection) {
-        window.solanaWeb3 = window.solana; // fallback kedua
-      } else if (window.Connection && window.PublicKey) {
-        // fallback terakhir, kumpulkan manual dari global constructor
-        window.solanaWeb3 = {
-          Connection: window.Connection,
-          Transaction: window.Transaction,
-          SystemProgram: window.SystemProgram,
-          PublicKey: window.PublicKey,
-          LAMPORTS_PER_SOL: window.LAMPORTS_PER_SOL
-        };
-      }
-    }
-    console.log("solanaWeb3 loaded:", typeof window.solanaWeb3?.Connection);
-  </script>
 
   <style>
     body {
@@ -119,12 +99,12 @@
         const amountSol = parseFloat(document.getElementById("amount").value);
         if (!seller || isNaN(amountSol)) return log("⚠️ Isi alamat seller dan jumlah SOL.");
 
-        const connection = new solanaWeb3.Connection("https://rpc.ankr.com/solana", "confirmed");
-        const txn = new solanaWeb3.Transaction().add(
-          solanaWeb3.SystemProgram.transfer({
+        const connection = new Connection("https://rpc.ankr.com/solana", "confirmed");
+        const txn = new Transaction().add(
+          SystemProgram.transfer({
             fromPubkey: pubkey,
-            toPubkey: new solanaWeb3.PublicKey(seller),
-            lamports: amountSol * solanaWeb3.LAMPORTS_PER_SOL
+            toPubkey: new PublicKey(seller),
+            lamports: amountSol * LAMPORTS_PER_SOL
           })
         );
 
