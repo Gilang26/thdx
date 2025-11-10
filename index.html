@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Multi Token Bridge • Sepolia → Monad (Wormhole)</title>
+<title>Wormhole Bridge • Sepolia → Monad</title>
 <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 <style>
 body { background:#0b1220; color:#fff; font-family:sans-serif; text-align:center; padding:20px; }
@@ -19,8 +19,8 @@ pre { text-align:left; background:#111a2e; padding:10px; border-radius:8px; whit
 </head>
 <body>
 
-<h2>🌉 Multi Token Bridge</h2>
-<p>Sepolia → Monad Testnet via Wormhole</p>
+<h2>🌉 Wormhole Bridge v2</h2>
+<p>Sepolia → Monad Testnet</p>
 
 <select id="token">
   <option value="USDC">USDC</option>
@@ -33,10 +33,6 @@ pre { text-align:left; background:#111a2e; padding:10px; border-radius:8px; whit
 <button id="approve" disabled>✅ Approve Token</button>
 <button id="bridge" disabled>🚀 Bridge ke Monad</button>
 
-<h3>Redeem VAA di Monad</h3>
-<textarea id="vaa" placeholder="Tempel Signed VAA (hex hasil converter) di sini"></textarea>
-<button id="redeem" disabled>🔁 Redeem VAA</button>
-
 <pre id="log">Log siap...</pre>
 
 <script>
@@ -46,9 +42,8 @@ const TOKENS = {
   WBTC: "0x52eeA312378ef46140EBE67dE8a143BA2304FD7C"
 };
 
-const BRIDGE = "0x6c5aAE4622B835058A41879bA5e128019B9047d6";
-const DST_CHAIN = 31041;
-
+const BRIDGE = "0x3ee18B2214AFF97000D974cf647E7C347E8fa585"; // Wormhole official
+const DST_CHAIN = 31041; // Monad testnet
 let provider, signer, user;
 
 function log(m){ const el=document.getElementById("log"); el.textContent+="\n"+m; el.scrollTop=el.scrollHeight; console.log(m); }
@@ -63,7 +58,6 @@ async function connect(){
     const net = await provider.getNetwork();
     log(`✅ Connected: ${user}\nChain: ${net.chainId}`);
     document.getElementById("approve").disabled = false;
-    document.getElementById("redeem").disabled = false;
   }catch(e){ log("❌ "+e.message); }
 }
 
@@ -92,44 +86,32 @@ async function bridgeToken(){
     if(!amount) return log("⚠️ Masukkan jumlah token dulu");
     const decimals = symbol === "WBTC" ? 8 : 6;
     const amt = ethers.utils.parseUnits(amount, decimals);
+
     const recipientBytes = "0x" + user.slice(2).padStart(64, "0");
     const abi = ["function transferTokens(address,uint256,uint16,bytes32,uint256,uint32)"];
     const bridge = new ethers.Contract(BRIDGE, abi, signer);
     const nonce = Math.floor(Math.random() * 1e9);
-    log(`🚀 Mengirim ${amount} ${symbol} ke Monad...`);
 
-    let tx;
-    try {
-      tx = await bridge.transferTokens(tokenAddr, amt, DST_CHAIN, recipientBytes, 0, nonce, { gasLimit: 250000 });
-    } catch (error) {
-      log("⚠️ Estimasi gas gagal, mencoba ulang dengan gas 300000...");
-      tx = await bridge.transferTokens(tokenAddr, amt, DST_CHAIN, recipientBytes, 0, nonce, { gasLimit: 300000 });
-    }
+    log(`🚀 Mengirim ${amount} ${symbol} ke Monad...`);
+    const tx = await bridge.transferTokens(
+      tokenAddr,
+      amt,
+      DST_CHAIN,
+      recipientBytes,
+      0,
+      nonce,
+      { gasLimit: 300000 }
+    );
 
     log(`📦 Bridge TX: ${tx.hash}`);
     await tx.wait();
-    log(`✅ ${symbol} berhasil di-bridge ke Monad! Tunggu VAA untuk redeem.`);
-  }catch(e){ log("❌ "+(e.message || e)); }
-}
-
-async function redeemVAA(){
-  try{
-    const hexVAA = document.getElementById("vaa").value.trim();
-    if(!hexVAA.startsWith("0x")) throw new Error("Format harus hex (awali 0x)");
-    const abi = ["function completeTransfer(bytes memory encodedVm)"];
-    const bridge = new ethers.Contract(BRIDGE, abi, signer);
-    log("🔁 Mengirim redeem VAA ke Wormhole bridge...");
-    const tx = await bridge.completeTransfer(hexVAA, { gasLimit: 350000 });
-    log(`📦 Redeem TX: ${tx.hash}`);
-    await tx.wait();
-    log("✅ Redeem sukses! Token muncul di Monad.");
+    log(`✅ ${symbol} berhasil dikirim ke Wormhole! Tunggu VAA untuk redeem.`);
   }catch(e){ log("❌ "+(e.message || e)); }
 }
 
 document.getElementById("connect").onclick = connect;
 document.getElementById("approve").onclick = approveToken;
 document.getElementById("bridge").onclick = bridgeToken;
-document.getElementById("redeem").onclick = redeemVAA;
 </script>
 </body>
 </html>
