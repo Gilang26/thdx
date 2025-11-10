@@ -5,11 +5,27 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>THDX • Solana NFT UI</title>
 
-  <!-- ✅ Solana Web3.js bundle khusus browser (sudah dengan Buffer polyfill) -->
+  <!-- ✅ Solana Web3.js bundle khusus browser (sudah ada polyfill Buffer) -->
   <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.3/lib/index.browser.min.js"></script>
   <script>
-    // ✅ Fallback: pastikan variabel solanaWeb3 global selalu tersedia
-    window.solanaWeb3 = window.solanaWeb3 || window.web3js || window.web3 || window.solana || {};
+    // ✅ Deteksi otomatis di semua wallet browser agar solanaWeb3 tidak undefined
+    if (!window.solanaWeb3) {
+      if (window.web3js && window.web3js.Connection) {
+        window.solanaWeb3 = window.web3js; // beberapa bundle pakai web3js
+      } else if (window.solana && window.solana.Connection) {
+        window.solanaWeb3 = window.solana; // fallback kedua
+      } else if (window.Connection && window.PublicKey) {
+        // fallback terakhir, kumpulkan manual dari global constructor
+        window.solanaWeb3 = {
+          Connection: window.Connection,
+          Transaction: window.Transaction,
+          SystemProgram: window.SystemProgram,
+          PublicKey: window.PublicKey,
+          LAMPORTS_PER_SOL: window.LAMPORTS_PER_SOL
+        };
+      }
+    }
+    console.log("solanaWeb3 loaded:", typeof window.solanaWeb3?.Connection);
   </script>
 
   <style>
