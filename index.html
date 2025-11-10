@@ -5,11 +5,18 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>THDX • Solana NFT UI</title>
 
-  <!-- Buffer polyfill untuk browser mobile -->
+  <!-- ✅ Buffer polyfill full fix untuk mobile browser -->
   <script src="https://cdn.jsdelivr.net/npm/buffer@6.0.3/index.min.js"></script>
-  <script>window.Buffer = window.Buffer || buffer.Buffer;</script>
+  <script>
+    window.Buffer = window.Buffer || buffer.Buffer;
+    if (typeof window.Buffer.from !== "function") {
+      window.Buffer.from = function (data, enc) {
+        return new buffer.Buffer(data, enc);
+      };
+    }
+  </script>
 
-  <!-- Solana web3.js -->
+  <!-- ✅ Solana Web3.js -->
   <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.3/lib/index.iife.min.js"></script>
 
   <style>
